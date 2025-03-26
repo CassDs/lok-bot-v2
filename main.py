@@ -3,11 +3,12 @@ from tkinter import ttk
 from login_tab import LoginTab
 from data_collection_tab import DataCollectionTab
 from processing_tab import DataProcessingTab
+from visualization_tab import DataVisualizationTab
 
 class IQOptionApp:
     def __init__(self, root):
         self.root = root
-        self.root.title("IQ Option - Coletor de Dados")
+        self.root.title("Loki - IQ Option")
         self.root.geometry("900x700")
         self.root.resizable(True, True)
 
@@ -35,9 +36,12 @@ class IQOptionApp:
         # Processamento de Dados
         self.processing_tab = DataProcessingTab(self.notebook)
         self.notebook.add(self.processing_tab.frame, text="Processamento de Dados")
-        
-        # Conectar a aba de processamento com a aba de coleta
         self.processing_tab.set_data_collection_tab(self.data_collection_tab)
+        
+        # Visualização de Dados
+        self.visualization_tab = DataVisualizationTab(self.notebook)
+        self.notebook.add(self.visualization_tab.frame, text="Visualização de Dados")
+        self.visualization_tab.set_data_tabs(self.data_collection_tab, self.processing_tab)
         
         # Configurar o callback de conexão
         self._setup_connection_callbacks()
