@@ -1,6 +1,7 @@
 import tkinter as tk
 from tkinter import ttk
 from login_tab import LoginTab
+from data_collection_tab import DataCollectionTab
 
 class IQOptionApp:
     def __init__(self, root):
@@ -22,9 +23,26 @@ class IQOptionApp:
         self._init_tabs()
 
     def _init_tabs(self):
-        # Login
+         # Login
         self.login_tab = LoginTab(self.notebook)
         self.notebook.add(self.login_tab.frame, text="Login IQ Option")
+
+        # Coleta de Dados (inicializar primeiro para obter a referência)
+        self.data_collection_tab = DataCollectionTab(self.notebook)
+        self.notebook.add(self.data_collection_tab.frame, text="Coleta de Dados")
+        
+        
+        # Configurar o callback de conexão
+        self._setup_connection_callbacks()
+
+    def _setup_connection_callbacks(self):
+        # Método para ser chamado após uma conexão bem-sucedida
+        self.login_tab.set_on_connected_callback(self._on_iq_connected)
+        
+    def _on_iq_connected(self, iq_instance):
+        self.data_collection_tab.set_iq_option_connection(iq_instance)
+        # Muda para a aba de coleta de dados após o login
+        self.notebook.select(1)  # índice 1 = segunda aba
 
 if __name__ == "__main__":
     root = tk.Tk()

@@ -5,6 +5,7 @@ import threading
 from iqoptionapi.stable_api import IQ_Option
 import os
 import pickle
+from data_collection_tab import DataCollectionTab
 
 class LoginTab:
     def __init__(self, master):
@@ -14,6 +15,10 @@ class LoginTab:
         self.connected = False
         self.credentials_file = "iq_credentials.pkl"
         self._load_saved_credentials()
+        self.on_connected_callback = None 
+
+    def set_on_connected_callback(self, callback):
+        self.on_connected_callback = callback
 
     def _build_login_ui(self):
         login_frame = ttk.LabelFrame(self.frame, text="Credenciais IQ Option")
@@ -39,7 +44,6 @@ class LoginTab:
 
         ttk.Radiobutton(account_type_frame, text="Demo", variable=self.account_type_var, value="demo").pack(side=tk.LEFT, padx=10)
         ttk.Radiobutton(account_type_frame, text="Real", variable=self.account_type_var, value="real").pack(side=tk.LEFT, padx=10)
-        ttk.Radiobutton(account_type_frame, text="Torneio", variable=self.account_type_var, value="torneio").pack(side=tk.LEFT, padx=10)
 
         # Checkbox lembrar
         self.remember_var = tk.BooleanVar(value=True)
@@ -98,6 +102,10 @@ class LoginTab:
 
                 if self.remember_var.get():
                     self._save_credentials(email, password, account_type)
+                    
+                # Chama o callback se estiver definido
+                if self.on_connected_callback:
+                    self.on_connected_callback(self.iq)
             else:
                 self.login_status_var.set("Falha na conexão")
                 self._log_connection_info("Erro: Email ou senha incorretos")
@@ -106,6 +114,7 @@ class LoginTab:
             self._log_connection_info(f"Erro ao conectar: {str(e)}")
 
         self.login_progress.stop()
+        
 
     def _log_connection_info(self, text):
         self.connection_info_text.config(state=tk.NORMAL)
