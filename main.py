@@ -2,6 +2,7 @@ import tkinter as tk
 from tkinter import ttk
 from login_tab import LoginTab
 from data_collection_tab import DataCollectionTab
+from processing_tab import DataProcessingTab
 
 class IQOptionApp:
     def __init__(self, root):
@@ -23,14 +24,20 @@ class IQOptionApp:
         self._init_tabs()
 
     def _init_tabs(self):
-         # Login
+        # Login
         self.login_tab = LoginTab(self.notebook)
         self.notebook.add(self.login_tab.frame, text="Login IQ Option")
 
-        # Coleta de Dados (inicializar primeiro para obter a referência)
+        # Coleta de Dados
         self.data_collection_tab = DataCollectionTab(self.notebook)
         self.notebook.add(self.data_collection_tab.frame, text="Coleta de Dados")
+
+        # Processamento de Dados
+        self.processing_tab = DataProcessingTab(self.notebook)
+        self.notebook.add(self.processing_tab.frame, text="Processamento de Dados")
         
+        # Conectar a aba de processamento com a aba de coleta
+        self.processing_tab.set_data_collection_tab(self.data_collection_tab)
         
         # Configurar o callback de conexão
         self._setup_connection_callbacks()

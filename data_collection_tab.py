@@ -305,9 +305,49 @@ class DataCollectionTab:
 
     def _salvar_dados(self):
         if self.collected_data is not None:
-            file_path = filedialog.asksaveasfilename(defaultextension=".csv", filetypes=[("CSV files", "*.csv")])
+            # Criar um nome de arquivo sugerido baseado nos parâmetros de coleta
+            asset = self.asset_var.get()
+            timeframe = self.timeframe_var.get()
+            
+            # Converter timeframe em formato mais legível
+            timeframe_text = ""
+            if timeframe == "60":
+                timeframe_text = "1min"
+            elif timeframe == "300":
+                timeframe_text = "5min"
+            elif timeframe == "900":
+                timeframe_text = "15min"
+            elif timeframe == "1800":
+                timeframe_text = "30min"
+            elif timeframe == "3600":
+                timeframe_text = "1hr"
+            elif timeframe == "86400":
+                timeframe_text = "1d"
+            else:
+                timeframe_text = f"{timeframe}s"
+                
+            # Adicionar data atual ao nome do arquivo
+            data_atual = time.strftime("%Y-%m-%d")
+            sugestao_nome = f"{asset}_{timeframe_text}_{data_atual}"
+
+            # Exibir diálogo para salvar com o nome sugerido
+            file_path = filedialog.asksaveasfilename(
+                defaultextension=".csv", 
+                filetypes=[("CSV files", "*.csv"), ("Excel files", "*.xlsx")],
+                initialfile=sugestao_nome
+            )
+            
             if file_path:
-                self.collected_data.to_csv(file_path, index=False)
+                # Verificar a extensão escolhida pelo usuário
+                if file_path.endswith('.csv'):
+                    self.collected_data.to_csv(file_path, index=False)
+                elif file_path.endswith('.xlsx'):
+                    self.collected_data.to_excel(file_path, index=False)
+                else:
+                    # Adicionar .csv por padrão se nenhuma extensão for especificada
+                    file_path = f"{file_path}.csv"
+                    self.collected_data.to_csv(file_path, index=False)
+                    
                 self.status_var.set(f"Dados salvos em: {file_path}")
         else:
             messagebox.showwarning("Salvar", "Nenhum dado coletado para salvar.")
