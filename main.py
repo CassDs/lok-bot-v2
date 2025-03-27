@@ -4,6 +4,7 @@ from login_tab import LoginTab
 from data_collection_tab import DataCollectionTab
 from processing_tab import DataProcessingTab
 from visualization_tab import DataVisualizationTab
+from ml_tab import MachineLearningTab
 
 class IQOptionApp:
     def __init__(self, root):
@@ -42,6 +43,10 @@ class IQOptionApp:
         self.visualization_tab = DataVisualizationTab(self.notebook)
         self.notebook.add(self.visualization_tab.frame, text="Visualização de Dados")
         self.visualization_tab.set_data_tabs(self.data_collection_tab, self.processing_tab)
+
+        # Machine Learning
+        self.ml_tab = MachineLearningTab(self.notebook, self) 
+        self.notebook.add(self.ml_tab.frame, text="Machine Learning")
         
         # Configurar o callback de conexão
         self._setup_connection_callbacks()
