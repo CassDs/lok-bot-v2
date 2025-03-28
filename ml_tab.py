@@ -35,18 +35,63 @@ class MachineLearningTab:
 
         # Construir a interface
         self._build_ui()
+
+    def _create_scrollable_frame(self, parent):
+        """Cria um frame com barra de rolagem vertical"""
+        # Container principal
+        container = ttk.Frame(parent)
+        
+        # Canvas para comportar o scrollbar
+        canvas = tk.Canvas(container)
+        scrollbar = ttk.Scrollbar(container, orient="vertical", command=canvas.yview)
+        
+        # Frame scrollável dentro do canvas
+        scrollable_frame = ttk.Frame(canvas)
+        
+        # Configurar o frame para expandir conforme necessário
+        scrollable_frame.bind(
+            "<Configure>",
+            lambda e: canvas.configure(
+                scrollregion=canvas.bbox("all")
+            )
+        )
+        
+        # Associar a barra de rolagem ao canvas
+        canvas.configure(yscrollcommand=scrollbar.set)
+        
+        # Criar janela no canvas para o frame scrollável
+        canvas_window = canvas.create_window((0, 0), window=scrollable_frame, anchor="nw")
+        
+        # Expandir a largura do frame para preencher o canvas
+        def _configure_canvas(event):
+            canvas.itemconfig(canvas_window, width=event.width)
+        canvas.bind('<Configure>', _configure_canvas)
+        
+        # Permitir rolagem com a roda do mouse
+        def _on_mousewheel(event):
+            canvas.yview_scroll(int(-1*(event.delta/120)), "units")
+        canvas.bind_all("<MouseWheel>", _on_mousewheel)
+        
+        # Layout do container, canvas e scrollbar
+        canvas.pack(side="left", fill="both", expand=True)
+        scrollbar.pack(side="right", fill="y")
+        
+        # Adicionar atributo scrollable_frame ao container para acesso
+        container.scrollable_frame = scrollable_frame
+        
+        return container
         
     def _build_ui(self):
-        """Constrói a interface completa da aba"""
+        """Constrói a interface completa da aba com suporte a rolagem"""
         # Notebook para organizar as seções
         self.notebook = ttk.Notebook(self.frame)
         self.notebook.pack(fill="both", expand=True, padx=5, pady=5)
         
-        # Criar as abas dentro da aba principal
-        self.data_tab = ttk.Frame(self.notebook)
-        self.model_tab = ttk.Frame(self.notebook)
-        self.results_tab = ttk.Frame(self.notebook)
-        self.prediction_tab = ttk.Frame(self.notebook)
+        # Criar as abas dentro da aba principal - usando frames com scroll
+        self.data_tab = self._create_scrollable_frame(self.notebook)
+        self.model_tab = self._create_scrollable_frame(self.notebook)
+        self.results_tab = self._create_scrollable_frame(self.notebook)
+        self.prediction_tab = self._create_scrollable_frame(self.notebook)
         
         # Adicionar as abas ao notebook
         self.notebook.add(self.data_tab, text="Dados")
@@ -54,38 +99,38 @@ class MachineLearningTab:
         self.notebook.add(self.results_tab, text="Resultados")
         self.notebook.add(self.prediction_tab, text="Previsão")
         
-        # Construir o conteúdo de cada aba
-        self._build_data_tab()
-        self._build_model_tab()
-        self._build_results_tab()
-        self._build_prediction_tab()
+        # Construir o conteúdo de cada aba - passar o frame interno
+        self._build_data_tab(self.data_tab.scrollable_frame)
+        self._build_model_tab(self.model_tab.scrollable_frame)
+        self._build_results_tab(self.results_tab.scrollable_frame)
+        self._build_prediction_tab(self.prediction_tab.scrollable_frame)
         
         # Barra de status
         self.status_var = StringVar(value="Pronto")
         status_bar = ttk.Label(self.frame, textvariable=self.status_var, relief=tk.SUNKEN, anchor=tk.W)
         status_bar.pack(side=tk.BOTTOM, fill=tk.X)
     
-    def _build_data_tab(self):
+    def _build_data_tab(self, parent):
         """Constrói a aba de carregamento e preparação de dados"""
         # Frame para origem dos dados
-        data_source_frame = ttk.LabelFrame(self.data_tab, text="Origem dos Dados")
+        data_source_frame = ttk.LabelFrame(parent, text="Origem dos Dados")
         data_source_frame.pack(fill="x", padx=10, pady=10)
-        
+
         # Botões para carregar dados
         button_frame = ttk.Frame(data_source_frame)
         button_frame.pack(padx=10, pady=10)
         
         ttk.Button(button_frame, text="Carregar CSV", 
-                   command=self._carregar_csv).pack(side=tk.LEFT, padx=5)
-                   
+                command=self._carregar_csv).pack(side=tk.LEFT, padx=5)
+                
         ttk.Button(button_frame, text="Usar Dados Coletados", 
-                   command=self._usar_dados_coletados).pack(side=tk.LEFT, padx=5)
-                   
+                command=self._usar_dados_coletados).pack(side=tk.LEFT, padx=5)
+                
         ttk.Button(button_frame, text="Usar Dados Processados", 
-                   command=self._usar_dados_processados).pack(side=tk.LEFT, padx=5)
+                command=self._usar_dados_processados).pack(side=tk.LEFT, padx=5)
         
-        # Informações sobre os dados
-        info_frame = ttk.LabelFrame(self.data_tab, text="Informações dos Dados")
+        # Informações sobre os dados - CORRIGIDO: usar parent em vez de self.data_tab
+        info_frame = ttk.LabelFrame(parent, text="Informações dos Dados")
         info_frame.pack(fill="x", padx=10, pady=10)
         
         self.data_info_text = tk.Text(info_frame, height=5, width=80)
@@ -93,15 +138,14 @@ class MachineLearningTab:
         self.data_info_text.insert(tk.END, "Nenhum dado carregado")
         self.data_info_text.config(state=tk.DISABLED)
         
-        # Frame para indicadores técnicos
-        self._build_technical_indicators()
-        
-        # Frame para seleção de features
-        self._build_feature_selection()
+        # Corrigir as chamadas de métodos abaixo para usar o parent
+        self._build_technical_indicators(parent)
+        self._build_feature_selection(parent)
     
-    def _build_technical_indicators(self):
+    def _build_technical_indicators(self, parent):
         """Adiciona seção para criação de indicadores técnicos"""
-        indicators_frame = ttk.LabelFrame(self.data_tab, text="Adicionar Indicadores Técnicos")
+        # CORRIGIDO: usar parent em vez de self.data_tab
+        indicators_frame = ttk.LabelFrame(parent, text="Adicionar Indicadores Técnicos")
         indicators_frame.pack(fill="x", padx=10, pady=10)
         
         # Explicação amigável
@@ -151,11 +195,12 @@ class MachineLearningTab:
         ttk.Button(row3, text="Remover Selecionado", 
                   command=self._remove_technical_indicator).pack(anchor="w", padx=5, pady=5)
     
-    def _build_feature_selection(self):
+    def _build_feature_selection(self, parent):
         """Constrói a interface para seleção de características"""
-        feature_frame = ttk.LabelFrame(self.data_tab, text="Selecionar Colunas para Treinamento")
+        # CORRIGIDO: usar parent em vez de self.data_tab
+        feature_frame = ttk.LabelFrame(parent, text="Selecionar Colunas para Treinamento")
         feature_frame.pack(fill="both", expand=True, padx=10, pady=10)
-        
+    
         # Explicação amigável
         ttk.Label(feature_frame, 
                  text="Selecione quais colunas o modelo deve usar para fazer previsões",
@@ -196,10 +241,11 @@ class MachineLearningTab:
         sel_scrollbar.pack(side=tk.RIGHT, fill="y")
         self.selected_columns.config(yscrollcommand=sel_scrollbar.set)
     
-    def _build_model_tab(self):
+    def _build_model_tab(self, parent):
         """Constrói a aba de configuração e treinamento do modelo"""
+
         # Frame para configuração do alvo (target)
-        target_frame = ttk.LabelFrame(self.model_tab, text="O que você quer prever?")
+        target_frame = ttk.LabelFrame(parent, text="O que você quer prever?")
         target_frame.pack(fill="x", padx=10, pady=10)
         
         # Explicação amigável
@@ -227,7 +273,7 @@ class MachineLearningTab:
         ttk.Entry(trend_frame, textvariable=self.trend_periods_var, width=5).pack(side=tk.LEFT, padx=5)
         
         # Frame para divisão dos dados
-        split_frame = ttk.LabelFrame(self.model_tab, text="Divisão dos Dados")
+        split_frame = ttk.LabelFrame(parent, text="Divisão dos Dados")
         split_frame.pack(fill="x", padx=10, pady=10)
         
         # Explicação amigável
@@ -264,7 +310,7 @@ class MachineLearningTab:
                       variable=self.normalize_var).pack(anchor="w", padx=5)
         
         # Frame para seleção do modelo
-        model_frame = ttk.LabelFrame(self.model_tab, text="Escolha do Modelo")
+        model_frame = ttk.LabelFrame(parent, text="Escolha do Modelo")
         model_frame.pack(fill="x", padx=10, pady=10)
         
         # Explicação amigável
@@ -289,7 +335,7 @@ class MachineLearningTab:
                    values=algorithms, width=40, state="readonly").pack(side=tk.LEFT, padx=5)
         
         # Botão de treinamento
-        train_button_frame = ttk.Frame(self.model_tab)
+        train_button_frame = ttk.Frame(parent)
         train_button_frame.pack(pady=20)
         
         self.train_button = ttk.Button(train_button_frame, text="Treinar Modelo", 
@@ -298,13 +344,13 @@ class MachineLearningTab:
         self.train_button.pack(pady=10, ipadx=20, ipady=5)
         
         # Barra de progresso
-        self.progress = ttk.Progressbar(self.model_tab, orient="horizontal", mode="indeterminate")
+        self.progress = ttk.Progressbar(parent, orient="horizontal", mode="indeterminate")
         self.progress.pack(fill="x", padx=10, pady=5)
     
-    def _build_results_tab(self):
+    def _build_results_tab(self, parent):
         """Constrói a aba de visualização de resultados"""
         # Frame para métricas de texto
-        metrics_frame = ttk.LabelFrame(self.results_tab, text="Resultados do Modelo")
+        metrics_frame = ttk.LabelFrame(parent, text="Resultados do Modelo")
         metrics_frame.pack(fill="x", padx=10, pady=10)
         
         # Área de texto com resultados
@@ -314,7 +360,7 @@ class MachineLearningTab:
         self.results_text.config(state=tk.DISABLED)
         
         # Visualizações
-        viz_frame = ttk.LabelFrame(self.results_tab, text="Visualizações")
+        viz_frame = ttk.LabelFrame(parent, text="Visualizações")
         viz_frame.pack(fill="both", expand=True, padx=10, pady=10)
         
         # Botões para diferentes visualizações
@@ -332,7 +378,7 @@ class MachineLearningTab:
         self.plot_frame.pack(fill="both", expand=True, padx=5, pady=5)
         
         # Botões para salvar/carregar o modelo
-        save_frame = ttk.Frame(self.results_tab)
+        save_frame = ttk.Frame(parent)
         save_frame.pack(fill="x", padx=10, pady=10)
         
         ttk.Button(save_frame, text="Salvar Modelo", 
@@ -341,10 +387,10 @@ class MachineLearningTab:
         ttk.Button(save_frame, text="Carregar Modelo", 
                   command=self._carregar_modelo).pack(side=tk.LEFT, padx=5)
     
-    def _build_prediction_tab(self):
+    def _build_prediction_tab(self, parent):
         """Constrói a aba de previsão com o modelo treinado"""
         # Frame para informações do modelo
-        model_frame = ttk.LabelFrame(self.prediction_tab, text="Modelo Atual")
+        model_frame = ttk.LabelFrame(parent, text="Modelo Atual")
         model_frame.pack(fill="x", padx=10, pady=10)
         
         # Status do modelo
@@ -357,7 +403,7 @@ class MachineLearningTab:
         ttk.Label(model_frame, textvariable=self.model_accuracy_var).pack(padx=5, pady=5)
         
         # Frame para opções de previsão
-        options_frame = ttk.LabelFrame(self.prediction_tab, text="Opções de Previsão")
+        options_frame = ttk.LabelFrame(parent, text="Opções de Previsão")
         options_frame.pack(fill="x", padx=10, pady=10)
         
         # Fonte de dados
@@ -386,7 +432,7 @@ class MachineLearningTab:
                   command=self._fazer_previsao).pack(pady=10)
         
         # Frame para resultados da previsão
-        results_frame = ttk.LabelFrame(self.prediction_tab, text="Resultados da Previsão")
+        results_frame = ttk.LabelFrame(parent, text="Resultados da Previsão")
         results_frame.pack(fill="both", expand=True, padx=10, pady=10)
         
         # Texto de resultados
