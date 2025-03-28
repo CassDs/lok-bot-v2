@@ -272,6 +272,21 @@ class MachineLearningTab:
         self.trend_periods_var = StringVar(value="5")
         ttk.Entry(trend_frame, textvariable=self.trend_periods_var, width=5).pack(side=tk.LEFT, padx=5)
         
+        # NOVO: Timeframe da previsão
+        timeframe_frame = ttk.Frame(target_frame)
+        timeframe_frame.pack(fill="x", padx=5, pady=5)
+        
+        ttk.Label(timeframe_frame, text="Período da vela:").pack(side=tk.LEFT, padx=5)
+        self.timeframe_var = StringVar(value="1m")
+        timeframe_options = ["1m", "3m", "5m", "15m", "30m", "1h", "2h", "4h", "1d"]
+        ttk.Combobox(timeframe_frame, textvariable=self.timeframe_var, 
+                    values=timeframe_options, width=5, state="readonly").pack(side=tk.LEFT, padx=5)
+        
+        # Explicação adicional
+        ttk.Label(timeframe_frame, 
+                text="Selecione o timeframe que está sendo previsto (ex: 5m = velas de 5 minutos)",
+                font=("Helvetica", 9, "italic")).pack(side=tk.LEFT, padx=10)
+        
         # Frame para divisão dos dados
         split_frame = ttk.LabelFrame(parent, text="Divisão dos Dados")
         split_frame.pack(fill="x", padx=10, pady=10)
@@ -334,6 +349,31 @@ class MachineLearningTab:
         ttk.Combobox(model_row, textvariable=self.algorithm_var, 
                    values=algorithms, width=40, state="readonly").pack(side=tk.LEFT, padx=5)
         
+        # Adicionar seção de modelo existente
+        existing_model_frame = ttk.LabelFrame(parent, text="Modelo Existente")
+        existing_model_frame.pack(fill="x", padx=10, pady=10)
+        
+        # Explicação amigável
+        ttk.Label(existing_model_frame, 
+                text="Carregue um modelo existente ou continue treinando um modelo atual",
+                font=("Helvetica", 9, "italic")).pack(anchor="w", padx=5, pady=5)
+        
+        buttons_frame = ttk.Frame(existing_model_frame)
+        buttons_frame.pack(fill="x", padx=5, pady=5)
+        
+        ttk.Button(buttons_frame, text="Salvar Modelo", 
+                  command=self._salvar_modelo).pack(side=tk.LEFT, padx=5)
+                  
+        ttk.Button(buttons_frame, text="Carregar Modelo", 
+                  command=self._carregar_modelo).pack(side=tk.LEFT, padx=5)
+                  
+        ttk.Button(buttons_frame, text="Continuar Treinamento", 
+                  command=self._continuar_treinamento).pack(side=tk.LEFT, padx=5)
+        
+        # Status do modelo atual
+        self.model_info_var = StringVar(value="Nenhum modelo carregado")
+        ttk.Label(existing_model_frame, textvariable=self.model_info_var).pack(anchor="w", padx=5, pady=5)
+        
         # Botão de treinamento
         train_button_frame = ttk.Frame(parent)
         train_button_frame.pack(pady=20)
@@ -376,16 +416,6 @@ class MachineLearningTab:
         # Frame para o gráfico
         self.plot_frame = ttk.Frame(viz_frame)
         self.plot_frame.pack(fill="both", expand=True, padx=5, pady=5)
-        
-        # Botões para salvar/carregar o modelo
-        save_frame = ttk.Frame(parent)
-        save_frame.pack(fill="x", padx=10, pady=10)
-        
-        ttk.Button(save_frame, text="Salvar Modelo", 
-                  command=self._salvar_modelo).pack(side=tk.LEFT, padx=5)
-                  
-        ttk.Button(save_frame, text="Carregar Modelo", 
-                  command=self._carregar_modelo).pack(side=tk.LEFT, padx=5)
     
     def _build_prediction_tab(self, parent):
         """Constrói a aba de previsão com o modelo treinado"""
@@ -875,7 +905,8 @@ class MachineLearningTab:
         self.results_text.config(state=tk.DISABLED)
         
         # Atualizar informações do modelo na aba de previsão
-        self.model_status_var.set(f"Modelo: {self.algorithm_var.get().split(' - ')[0]}")
+        timeframe = self.timeframe_var.get()
+        self.model_status_var.set(f"Modelo: {self.algorithm_var.get().split(' - ')[0]} ({timeframe})")
         self.model_accuracy_var.set(f"Acurácia: {accuracy:.4f} ({accuracy*100:.1f}%)")
         
         # Trocar para a aba de resultados
@@ -1024,7 +1055,10 @@ class MachineLearningTab:
                 'scaler': self.scaler,
                 'algorithm': self.algorithm_var.get().split(" - ")[0],
                 'accuracy': accuracy_score(self.y_test, self.predictions),
-                'date_trained': datetime.now().strftime('%Y-%m-%d %H:%M')
+                'date_trained': datetime.now().strftime('%Y-%m-%d %H:%M'),
+                'timeframe': self.timeframe_var.get(),  # NOVO: Salvar o timeframe
+                'target_type': self.target_type_var.get(),  # NOVO: Salvar o tipo de alvo
+                'trend_periods': self.trend_periods_var.get() if self.target_type_var.get() == "trend" else "1"
             }
             
             # Salvar dependendo da extensão
@@ -1040,7 +1074,7 @@ class MachineLearningTab:
         except Exception as e:
             messagebox.showerror("Erro ao salvar", f"Erro: {str(e)}")
             self.status_var.set(f"Erro ao salvar modelo: {str(e)}")
-    
+        
     def _carregar_modelo(self):
         """Carrega um modelo salvo anteriormente"""
         file_path = filedialog.askopenfilename(
@@ -1068,14 +1102,29 @@ class MachineLearningTab:
             algorithm = model_data.get('algorithm', type(self.model).__name__)
             accuracy = model_data.get('accuracy', 0)
             date_trained = model_data.get('date_trained', 'desconhecida')
+            timeframe = model_data.get('timeframe', '?')  # NOVO: Recuperar o timeframe
+            target_type = model_data.get('target_type', 'next_candle')  # NOVO: Recuperar o tipo de alvo
+            
+            # Atualizar variáveis de interface para refletir o modelo carregado
+            self.timeframe_var.set(timeframe)
+            self.target_type_var.set(target_type)
+            if 'trend_periods' in model_data and target_type == "trend":
+                self.trend_periods_var.set(model_data['trend_periods'])
             
             # Atualizar interface
-            self.model_status_var.set(f"Modelo: {algorithm} (carregado de arquivo)")
+            self.model_status_var.set(f"Modelo: {algorithm} ({timeframe}) (carregado de arquivo)")
             self.model_accuracy_var.set(f"Acurácia: {accuracy:.4f} ({accuracy*100:.1f}%)")
             
+            # Atualizar a informação na aba de treinamento
+            self.model_info_var.set(f"Modelo atual: {algorithm} ({timeframe}) (Acurácia: {accuracy:.4f})")
+            
             # Mostrar mensagem nos resultados
+            target_info = "Próxima vela" if target_type == "next_candle" else f"Tendência ({model_data.get('trend_periods', '?')} períodos)"
+            
             results = (
                 f"Modelo Carregado: {algorithm}\n"
+                f"Timeframe: {timeframe}\n"
+                f"Tipo de previsão: {target_info}\n"
                 f"Data de treinamento: {date_trained}\n"
                 f"Acurácia reportada: {accuracy:.4f} ({accuracy*100:.1f}%)\n\n"
                 f"Features usadas ({len(self.selected_features)}):\n"
@@ -1234,19 +1283,55 @@ class MachineLearningTab:
             
             # Aplicar normalização se necessário
             if self.scaler is not None:
-                X_recent = self.scaler.transform(X_recent)
+                X_recent_scaled = self.scaler.transform(X_recent)
+                predictions = self.model.predict(X_recent_scaled)
+            else:
+                predictions = self.model.predict(X_recent)
                 
-            # Fazer predição
-            predictions = self.model.predict(X_recent)
-            
             # Tentar obter probabilidades
             probabilities = None
             if hasattr(self.model, 'predict_proba'):
                 try:
-                    probabilities = self.model.predict_proba(X_recent)
+                    if self.scaler is not None:
+                        probabilities = self.model.predict_proba(X_recent_scaled)
+                    else:
+                        probabilities = self.model.predict_proba(X_recent)
                 except:
                     pass
                     
+            # Tentar determinar os valores reais para comparação (quando possível)
+            # Primeiro verificamos se temos "target" já calculado nos dados
+            has_real_values = False
+            real_values = None
+            accuracy_info = ""
+            
+            # Se temos dados de preço, podemos calcular os resultados reais para comparação
+            # com as candles que já temos os próximos valores
+            price_col = self._get_price_column()
+            if price_col and len(recent_data) > num_candles + 1:
+                # Calcular se o preço subiu ou desceu na próxima vela
+                future_prices = recent_data[price_col].shift(-1).tail(num_candles)
+                current_prices = recent_data[price_col].tail(num_candles)
+                
+                # Remover NaN (a última vela não terá valor futuro)
+                mask = ~future_prices.isna()
+                real_values = (future_prices > current_prices).astype(int)
+                has_real_values = True
+                
+                # Calcular acurácia para os valores disponíveis
+                correct_count = 0
+                total_valid = 0
+                
+                for i in range(len(predictions)):
+                    if i < len(real_values) and not pd.isna(real_values.iloc[i]):
+                        if predictions[i] == real_values.iloc[i]:
+                            correct_count += 1
+                        total_valid += 1
+                
+                if total_valid > 0:
+                    accuracy = correct_count / total_valid
+                    accuracy_info = f"\nAcurácia: {accuracy:.2f} ({correct_count}/{total_valid})"
+            
             # Montar resultados para exibição
             result_text = "=== Previsão em Dados Recentes ===\n\n"
             result_text += f"Usando {num_candles} candles dos dados recentes\n\n"
@@ -1258,11 +1343,17 @@ class MachineLearningTab:
             if 'timestamp' in recent_data.columns:
                 timestamps = recent_data['timestamp'].tail(num_candles).tolist()
                 has_timestamp = True
-                result_text += f"{'Data/Hora':<20} {'Previsão':<10} {'Confiança':<10}\n"
+                if has_real_values:
+                    result_text += f"{'Data/Hora':<20} {'Previsão':<10} {'Confiança':<10} {'Real':<10} {'Correto?':<8}\n"
+                else:
+                    result_text += f"{'Data/Hora':<20} {'Previsão':<10} {'Confiança':<10}\n"
             else:
-                result_text += f"{'#':<5} {'Previsão':<10} {'Confiança':<10}\n"
-                
-            result_text += "-" * 40 + "\n"
+                if has_real_values:
+                    result_text += f"{'#':<5} {'Previsão':<10} {'Confiança':<10} {'Real':<10} {'Correto?':<8}\n"
+                else:
+                    result_text += f"{'#':<5} {'Previsão':<10} {'Confiança':<10}\n"
+                    
+            result_text += "-" * (60 if has_real_values else 40) + "\n"
             
             for i in range(len(predictions)):
                 pred = predictions[i]
@@ -1283,8 +1374,20 @@ class MachineLearningTab:
                     result_text += f"{i+1:<5} "
                     
                 result_text += f"{'Alta' if pred == 1 else 'Baixa':<10} "
-                result_text += f"{confidence:<10}\n"
+                result_text += f"{confidence:<10} "
                 
+                # Adicionar informação de acerto/erro quando disponível
+                if has_real_values and i < len(real_values) and not pd.isna(real_values.iloc[i]):
+                    real_val = real_values.iloc[i]
+                    is_correct = pred == real_val
+                    result_text += f"{'Alta' if real_val == 1 else 'Baixa':<10} "
+                    result_text += f"{'✓' if is_correct else '✗'}\n"
+                else:
+                    result_text += "\n" if not has_real_values else "N/A        N/A\n"
+                    
+            # Adicionar informação de acurácia se disponível
+            result_text += accuracy_info
+            
             # Mostrar resultados
             self.prediction_text.config(state=tk.NORMAL)
             self.prediction_text.delete('1.0', tk.END)
@@ -1292,7 +1395,7 @@ class MachineLearningTab:
             self.prediction_text.config(state=tk.DISABLED)
             
             # Plotar gráfico dos dados recentes com previsão
-            self._plot_recent_prediction(recent_data.tail(num_candles), predictions)
+            self._plot_recent_prediction(recent_data.tail(num_candles), predictions, real_values if has_real_values else None)
             
         except Exception as e:
             messagebox.showerror("Erro", f"Erro ao fazer previsão: {str(e)}")
@@ -1393,5 +1496,159 @@ class MachineLearningTab:
             
         except Exception as e:
             messagebox.showerror("Erro", f"Erro ao plotar dados recentes: {str(e)}")
+            import traceback
+            traceback.print_exc()
+
+    def _continuar_treinamento(self):
+        """Continua o treinamento de um modelo existente"""
+        if not hasattr(self, 'model') or self.model is None:
+            messagebox.showwarning("Aviso", "Não há modelo para continuar treinamento.\nCarregue um modelo primeiro.")
+            return
+        
+        if self.data is None:
+            messagebox.showwarning("Aviso", "Carregue dados para continuar o treinamento.")
+            return
+            
+        # Verificar se há colunas selecionadas
+        if self.selected_columns.size() == 0:
+            messagebox.showwarning("Aviso", "Selecione pelo menos uma coluna para treinamento")
+            return
+            
+        # Verificar compatibilidade de features
+        selected_features = list(self.selected_columns.get(0, tk.END))
+        
+        missing_features = []
+        for feature in self.selected_features:
+            if feature not in selected_features:
+                missing_features.append(feature)
+        
+        if missing_features:
+            msg = f"Os dados atuais não contêm todas as features usadas pelo modelo.\nFaltando: {', '.join(missing_features)}"
+            messagebox.showerror("Erro de Compatibilidade", msg)
+            return
+        
+        # Confirmar com o usuário
+        confirm = messagebox.askyesno(
+            "Confirmar Treinamento Continuado", 
+            "Ao continuar o treinamento, o modelo existente será atualizado com os novos dados. Continuar?"
+        )
+        
+        if not confirm:
+            return
+        
+        # Iniciar treinamento em thread separada
+        self.progress.start()
+        self.train_button.config(state=tk.DISABLED)
+        self.status_var.set("Continuando treinamento do modelo...")
+        
+        # Usar uma thread para não congelar a interface
+        threading.Thread(target=self._thread_continuar_treinamento).start()
+
+    def _thread_continuar_treinamento(self):
+        """Thread para continuação de treinamento em background"""
+        try:
+            # Preparar os dados
+            df = self.data.copy()
+            
+            # Usar apenas as features que o modelo já conhece
+            df = df[self.selected_features + ['target'] if 'target' in df.columns else self.selected_features]
+            
+            # Preparar alvo (target) se não existir
+            if 'target' not in df.columns:
+                target_type = self.target_type_var.get()
+                
+                if target_type == "next_candle":
+                    price_col = self._get_price_column()
+                    if price_col:
+                        df['target'] = (df[price_col].shift(-1) > df[price_col]).astype(int)
+                    else:
+                        raise ValueError("Não foi possível identificar a coluna de preço")
+                else:  # tendência
+                    periods = int(self.trend_periods_var.get())
+                    price_col = self._get_price_column()
+                    if price_col:
+                        df['future_price'] = df[price_col].shift(-periods)
+                        df['target'] = (df['future_price'] > df[price_col]).astype(int)
+                        df.drop('future_price', axis=1, inplace=True)
+                    else:
+                        raise ValueError("Não foi possível identificar a coluna de preço")
+            
+            # Remover linhas com valores NaN
+            df.dropna(inplace=True)
+            
+            X = df[self.selected_features]
+            y = df['target']
+            
+            # Obter a mesma divisão usada anteriormente para test
+            train_size = float(self.train_size_var.get()) / 100
+            split_method = self.split_method_var.get()
+            
+            if split_method == "time":
+                # Divisão temporal
+                split_idx = int(len(X) * train_size)
+                X_train = X.iloc[:split_idx]
+                X_test = X.iloc[split_idx:]
+                y_train = y.iloc[:split_idx]
+                y_test = y.iloc[split_idx:]
+            else:
+                # Divisão aleatória
+                X_train, X_test, y_train, y_test = train_test_split(
+                    X, y, train_size=train_size, random_state=42
+                )
+            
+            # Normalizar dados conforme o modelo original
+            if self.scaler is not None:
+                X_train = self.scaler.transform(X_train)
+                X_test = self.scaler.transform(X_test)
+            
+            # Manter os dados para uso posterior
+            self.X_train = X_train
+            self.X_test = X_test
+            self.y_train = y_train
+            self.y_test = y_test
+            
+            # Continuar treinamento do modelo existente
+            # Verificar o tipo de modelo para usar o método correto de atualização
+            if hasattr(self.model, "partial_fit"):
+                # Para modelos que suportam aprendizado incremental
+                self.model.partial_fit(X_train, y_train, classes=np.unique(y))
+            else:
+                # Para modelos que não suportam aprendizado incremental, retreinar
+                self.model.fit(X_train, y_train)
+            
+            # Avaliar o modelo atualizado
+            train_preds = self.model.predict(X_train)
+            test_preds = self.model.predict(X_test)
+            
+            train_acc = accuracy_score(y_train, train_preds)
+            test_acc = accuracy_score(y_test, test_preds)
+            
+            # Mais métricas para teste
+            precision = precision_score(y_test, test_preds)
+            recall = recall_score(y_test, test_preds)
+            f1 = f1_score(y_test, test_preds)
+            
+            # Guardar previsões para visualização
+            self.predictions = test_preds
+            
+            # Preparar mensagem de resultados
+            results = (
+                "=== Resultados do Treinamento Continuado ===\n\n"
+                f"Modelo: {type(self.model).__name__}\n"
+                f"Features usadas: {len(self.selected_features)}\n"
+                f"Novos dados: {len(X)} registros (Treino: {len(X_train)}, Teste: {len(X_test)})\n\n"
+                f"Acurácia no Treino: {train_acc:.4f} ({train_acc*100:.1f}%)\n"
+                f"Acurácia no Teste: {test_acc:.4f} ({test_acc*100:.1f}%)\n\n"
+                f"Precisão: {precision:.4f}\n"
+                f"Recall: {recall:.4f}\n"
+                f"F1-Score: {f1:.4f}\n\n"
+                "O modelo foi atualizado com sucesso!"
+            )
+            
+            # Atualizar interface no thread principal
+            self.frame.after(0, lambda: self._atualizar_apos_treino(results, test_acc))
+            
+        except Exception as e:
+            self.frame.after(0, lambda: self._erro_treino(str(e)))
             import traceback
             traceback.print_exc()
